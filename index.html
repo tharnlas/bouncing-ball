@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<script src="https://threejs.org/build/three.min.js"></script>
+</head>
+
+<body>
+	<script>
+		var renderer, camera, scene; 
+		var timer;
+
+		var wall, ball, floor;
+
+		// Textures
+		var ball_texture = new THREE.TextureLoader().load("imgs/basketball.png");
+
+		var wall_texture = new THREE.TextureLoader().load("imgs/wall.jpg");
+		wall_texture.wrapS = wall_texture.wrapT = THREE.RepeatWrapping;
+		wall_texture.repeat.set(3, 2);
+
+		var floor_img = new THREE.TextureLoader().load("imgs/tiles.jpg");
+		floor_img.wrapS = floor_img.wrapT = THREE.RepeatWrapping;
+		floor_img.repeat.set(5, 5);
+
+		// Lights: ambient and point
+		var ambient_l, point_l;
+
+		// Audio
+		var audio = document.createElement("audio")
+		audio.src = "sound/sound.mp3"
+		audio.volume = 0.15;
+
+		// Precompute points of ball path
+		var a = 1;
+		var points = []
+		var x, y;
+
+		var ind = 0, length;	// to use later for animate()
+
+		for (i = 0; i <= 5; ++i)
+		{
+			for (t = -5; t <= 5; ++t)
+			{
+				x = 10 * i + t - 30;
+				y = -a * t * t + 25 * a - 14;
+				points.push( {x: x, y: y, t: t} );	
+			}
+			a = a * 2/3;
+		}
+
+		for ( i = 0; i <= 10; ++i)
+		{
+			points.push( {x: x + i, y: y, t: 0});
+		}
+
+		length = points.length;
+
+
+		// Call init when window done loading
+		window.onload = init;
+
+		function init()
+		{
+			// Initialize renderer
+			renderer = new THREE.WebGLRenderer();
+			renderer.setSize(800, 600);
+			document.body.appendChild(renderer.domElement);
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+			// Initialize scene
+			scene = new THREE.Scene();
+
+			// Initialize camera
+			camera = new THREE.PerspectiveCamera(32, 800/600, 1, 1000);
+			camera.position.set(0, 0, 80);
+			camera.lookAt(scene.position);
+
+			// Add objects
+			addBall();
+			addLight();
+			addWall();
+			addFloor();
+			addWallpart();
+			
+			renderer.render(scene, camera);
+			
+			timer = setInterval(animate, 50);
+		}
+
+		function animate()
+		{
+			if (ind < length)
+			{
+				ball.rotation.z -= 0.3;
+				ball.position.set(points[ind].x, points[ind].y, 5);
+			
+				renderer.render(scene, camera);
+
+				if(points[ind].t > 4)
+					audio.play();
+
+				++ind;
+			}
+			else
+				clearInterval(timer);
+		}
+
+		function addLight()
+		{
+			// Add ambient light
+			ambient_l = new THREE.AmbientLight( 0xBEBEBE ); // soft white light
+			scene.add( ambient_l );
+
+			// Add point light
+			point_l = new THREE.PointLight(0x797979, 1);
+			point_l.position.set(-45, 35, 25);
+
+			point_l.castShadow = true;          
+			point_l.shadow.camera.near = 2;      
+			point_l.shadow.camera.far = 100;
+
+			scene.add(point_l);
+		}
+
+		function addBall()
+		{
+			var geometry = new THREE.SphereGeometry(5, 300, 300);
+			var material = new THREE.MeshLambertMaterial( { map: ball_texture });
+			ball = new THREE.Mesh( geometry, material );
+
+			ball.position.set(-35, -13, 5);
+			ball.castShadow = true;
+
+			scene.add(ball);
+		}
+
+		function addWall()
+		{
+			var geometry = new THREE.PlaneGeometry(75, 75, 10, 10);
+			var material = new THREE.MeshPhongMaterial( { color: 0xd4a81c, bumpMap: wall_texture } );
+			wall = new THREE.Mesh( geometry, material );
+			wall.receiveShadow = true;
+
+			geometry = new THREE.BoxGeometry(80, 0.5, 0.25);
+			material = new THREE.MeshLambertMaterial( { color: 0xc5c5c5 } );
+			strip = new THREE.Mesh( geometry, material );
+			strip.position.set(0, -16.8, 0);
+			wall.add(strip);
+
+			scene.add(wall);			
+		}
+
+		function addWallpart()
+		{
+			var geometry = new THREE.BoxGeometry(3.75, 5.1, 1);
+			var material = new THREE.MeshPhongMaterial( {color: 0xffffff });
+			var part1 = new THREE.Mesh( geometry, material );
+			part1.position.set(17.5, -3.8, 0);
+			part1.castShadow = true;
+
+			geometry = new THREE.BoxGeometry(2.5, 0.5, 1);
+			material = new THREE.MeshPhongMaterial( {color: 0xeeeeee } );
+			part2 = new THREE.Mesh( geometry, material );
+			part2.position.set(17.2, -5.3, 1);
+			part2.castShadow = true;
+
+			geometry = new THREE.BoxGeometry(2.5, 3, 0.5);
+			material = new THREE.MeshPhongMaterial( { color: 0xeeeeee });
+			part3 = new THREE.Mesh( geometry, material );
+			part3.position.set(17.2, -3.4, 1.2);
+
+			geometry = new THREE.CircleGeometry(0.2, 32);
+			material = new THREE.MeshPhongMaterial( {color: 0x797979} );
+			part4 = new THREE.Mesh( geometry, material );	
+			part4.position.set(17.2, -5.7, 1.5);
+
+			wall.add(part1);
+			wall.add(part2);
+			wall.add(part3);
+			wall.add(part4);
+		}
+
+		function addFloor()
+		{
+			var geometry = new THREE.PlaneGeometry(100, 100, 10, 10);
+			var material = new THREE.MeshPhongMaterial( { map: floor_img } );
+			floor = new THREE.Mesh( geometry, material );
+			floor.receiveShadow = true;
+
+			floor.rotation.x -= 1.32;
+			floor.position.set(0, -19.5, 10);
+			scene.add(floor);
+		}
+
+
+	</script>
+</body>
+</html>
